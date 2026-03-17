@@ -53,20 +53,23 @@
 
     <!-- Main Workspace -->
     <main class="flex-1 flex flex-row relative min-h-0">
-        
+
         <!-- Left: Editor Pane -->
-        <section class="w-1/2 flex flex-col border-r border-gray-700 bg-gray-900">
+        <section id="editor-pane" class="flex flex-col border-r border-gray-700 bg-gray-900" style="flex: 1 1 0%; min-width: 200px;">
             <div class="bg-gray-800 px-3 py-1 text-xs text-gray-400 uppercase tracking-wider border-b border-gray-700">Source / Input</div>
-            <textarea 
-                id="editor-area" 
+            <textarea
+                id="editor-area"
                 class="flex-1 w-full p-4 bg-gray-900 text-gray-300 resize-none focus:outline-none font-mono text-sm leading-relaxed placeholder-gray-600"
                 placeholder="# Start typing or import a file..."
                 spellcheck="false"
             ></textarea>
         </section>
 
+        <!-- Resizer Handle -->
+        <div id="resizer" class="w-1 bg-gray-600 hover:bg-blue-500 cursor-col-resize flex items-center justify-center transition-colors"></div>
+
         <!-- Right: Preview Pane -->
-        <section class="w-1/2 flex flex-col bg-white text-gray-800 overflow-y-auto custom-scroll">
+        <section id="preview-pane" class="flex flex-col bg-white text-gray-800 overflow-y-auto custom-scroll" style="flex: 1 1 0%; min-width: 200px;">
             <div class="bg-gray-200 px-3 py-1 text-xs text-gray-600 uppercase tracking-wider border-b border-gray-300 sticky top-0 z-10">Rendered Output</div>
             <div id="preview-area" class="markdown-body p-8 min-h-full">
                 <div class="text-gray-400 italic text-center mt-20">Preview will appear here...</div>

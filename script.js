@@ -1,8 +1,13 @@
 // --- 1. Configuration & Initialization ---
-const editor = document.getElementById('editor-area');
-const preview = document.getElementById('preview-area');
-const fileInput = document.getElementById('file-input');
-const previewSection = document.getElementById('preview-area').closest('section');
+let editor, preview, fileInput, previewSection;
+
+// Get elements after DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    editor = document.getElementById('editor-area');
+    preview = document.getElementById('preview-area');
+    fileInput = document.getElementById('file-input');
+    previewSection = document.getElementById('preview-area').closest('section');
+});
 
 // Embedded CSS for export (copied from styles.css)
 const embeddedStyles = `/* Custom Scrollbar for Preview Pane */
@@ -214,8 +219,8 @@ function syncScroll(source, target) {
     setTimeout(() => { isScrolling = false; }, 0);
 }
 
-editor.addEventListener('scroll', () => syncScroll(editor, previewSection));
-previewSection.addEventListener('scroll', () => syncScroll(previewSection, editor));
+// Panel Resizer
+let isResizing = false;
 
 // Configure Marked.js with Syntax Highlighting
 marked.setOptions({
@@ -224,39 +229,6 @@ marked.setOptions({
         return hljs.highlight(code, { language }).value;
     },
     langPrefix: 'hljs language-'
-});
-
-// Load Default Text
-const defaultText = `# Tech-MD Studio
-
-Welcome to your **machine-code markdown** environment.
-
-## Features
-
-- [x] Import Files
-- [x] Syntax Highlighting
-- [ ] Auto-Format Support
-
-### Sample Code
-
-\`\`\`javascript
-function optimizeSystem(input) {
-  console.log("Processing data stream...");
-  return input.map(i => i * 2);
-}
-\`\`\`
-
-Happy Coding!`;
-
-// Try to load from LocalStorage
-const savedContent = localStorage.getItem('tm_saved_draft');
-editor.value = savedContent || defaultText;
-renderMarkdown();
-
-// Listen for changes
-editor.addEventListener('input', () => {
-    renderMarkdown();
-    localStorage.setItem('tm_saved_draft', editor.value);
 });
 
 // --- 2. Core Logic ---
@@ -272,21 +244,7 @@ function renderMarkdown() {
     });
 }
 
-// --- 3. Import Functionality ---
-
-fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        editor.value = event.target.result;
-        renderMarkdown();
-    };
-    reader.readAsText(file);
-});
-
-// --- 4. Export Functions ---
+// --- 3. Export Functions ---
 
 function downloadFile(content, filename, type) {
     const blob = new Blob([content], { type });
@@ -378,7 +336,104 @@ function autoFormatText() {
 
     editor.value = formattedLines.join('\n');
     renderMarkdown();
+    localStorage.setItem('tm_saved_draft', editor.value);
 }
+
+// Default text
+const defaultText = `# Tech-MD Studio
+
+Welcome to your **machine-code markdown** environment.
+
+## Features
+
+- [x] Import Files
+- [x] Syntax Highlighting
+- [ ] Auto-Format Support
+
+### Sample Code
+
+\`\`\`javascript
+function optimizeSystem(input) {
+  console.log("Processing data stream...");
+  return input.map(i => i * 2);
+}
+\`\`\`
+
+Happy Coding!`;
+
+// Initialize app when DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Get DOM elements
+    editor = document.getElementById('editor-area');
+    preview = document.getElementById('preview-area');
+    fileInput = document.getElementById('file-input');
+    previewSection = document.getElementById('preview-area').closest('section');
+
+    const resizer = document.getElementById('resizer');
+    const editorPane = document.getElementById('editor-pane');
+    const previewPane = document.getElementById('preview-pane');
+
+    // Load from localStorage or use default
+    const savedContent = localStorage.getItem('tm_saved_draft');
+    editor.value = savedContent || defaultText;
+    renderMarkdown();
+
+    // Set up scroll synchronization
+    editor.addEventListener('scroll', () => syncScroll(editor, previewSection));
+    previewSection.addEventListener('scroll', () => syncScroll(previewSection, editor));
+
+    // Set up panel resizer
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const container = document.querySelector('main');
+        const containerRect = container.getBoundingClientRect();
+        const containerWidth = containerRect.width;
+
+        // Calculate new widths as percentages
+        const editorPercentage = ((e.clientX - containerRect.left) / containerWidth) * 100;
+
+        // Clamp between 20% and 80%
+        if (editorPercentage >= 20 && editorPercentage <= 80) {
+            editorPane.style.flex = `0 0 ${editorPercentage}%`;
+            previewPane.style.flex = `0 0 ${100 - editorPercentage}%`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
+
+    // Listen for input changes and save to localStorage
+    editor.addEventListener('input', () => {
+        renderMarkdown();
+        localStorage.setItem('tm_saved_draft', editor.value);
+    });
+
+    // Set up file input handler
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            editor.value = event.target.result;
+            renderMarkdown();
+            localStorage.setItem('tm_saved_draft', editor.value);
+        };
+        reader.readAsText(file);
+    });
+});
 
 // Clear localStorage and reset to default
 function clearLocalStorage() {

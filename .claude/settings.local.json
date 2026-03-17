@@ -10,7 +10,8 @@
       "Bash(cd \"c:\\\\Users\\\\Admin\\\\Documents\\\\Full-Stack-Development\\\\Website for Companies\\\\MarkdownConverter\" && python test_page.py)",
       "Bash(/plugin marketplace:*)",
       "Bash(/plugin install:*)",
-      "Bash(ls -la *.html *.css *.js)"
+      "Bash(ls -la *.html *.css *.js)",
+      "Bash(python test_localstorage.py)"
     ]
   }
 }
