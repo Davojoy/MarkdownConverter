@@ -4,6 +4,205 @@ const preview = document.getElementById('preview-area');
 const fileInput = document.getElementById('file-input');
 const previewSection = document.getElementById('preview-area').closest('section');
 
+// Embedded CSS for export (copied from styles.css)
+const embeddedStyles = `/* Custom Scrollbar for Preview Pane */
+.custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Editor Styles */
+#editor-area {
+    font-family: 'Courier New', Courier, monospace;
+    line-height: 1.6;
+    outline: none;
+    tab-size: 4;
+}
+
+/* Hide scrollbar for editor pane but keep scroll functionality */
+#editor-area::-webkit-scrollbar {
+    display: none;
+}
+#editor-area {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* Markdown Body Typography - replaces Tailwind prose plugin */
+.markdown-body {
+    line-height: 1.75;
+    color: #1e293b;
+    max-width: 45rem;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.markdown-body h1 {
+    font-size: 2.25em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #e2e8f0;
+    margin-top: 0;
+}
+
+.markdown-body h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.markdown-body h3 {
+    font-size: 1.25em;
+}
+
+.markdown-body p {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.markdown-body a {
+    color: #3b82f6;
+    text-decoration: underline;
+}
+
+.markdown-body a:hover {
+    color: #2563eb;
+}
+
+.markdown-body strong {
+    font-weight: 600;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    padding-left: 2em;
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.markdown-body li {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+.markdown-body li>p {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+.markdown-body blockquote {
+    margin: 1.5em 0;
+    padding: 0.5em 1.5em;
+    border-left: 5px solid #e2e8f0;
+    background-color: #f8fafc;
+    color: #64748b;
+    border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.markdown-body blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+.markdown-body code {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875em;
+}
+
+.markdown-body :not(pre) > code {
+    background-color: #f1f5f9;
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    color: #d946ef;
+}
+
+.markdown-body pre {
+    padding: 1.25rem !important;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 1.5em 0;
+    background-color: #1e293b !important;
+    border: 1px solid #334155;
+}
+
+.markdown-body pre code {
+    color: #e2e8f0 !important;
+    background: transparent !important;
+    font-size: 0.875em;
+    line-height: 1.6;
+    padding: 0 !important;
+}
+
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    font-size: 0.9em;
+}
+
+.markdown-body th,
+.markdown-body td {
+    border: 1px solid #e2e8f0;
+    padding: 0.5em 1em;
+    text-align: left;
+}
+
+.markdown-body th {
+    background-color: #f8fafc;
+    font-weight: 600;
+}
+
+.markdown-body tr:nth-child(2n) {
+    background-color: #f8fafc;
+}
+
+.markdown-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1.5em 0;
+}
+
+.markdown-body hr {
+    height: 0.25em;
+    padding: 0;
+    margin: 2em 0;
+    background-color: #e2e8f0;
+    border: 0;
+}
+
+.markdown-body input[type="checkbox"] {
+    margin-right: 0.5em;
+}
+
+/* Tooltip for Buttons */
+.tooltip {
+    position: relative;
+}
+.tooltip:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: #f3f4f6;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 50;
+    margin-bottom: 0.5rem;
+}`;
+
 // Scroll Synchronization
 let isScrolling = false;
 
@@ -104,15 +303,25 @@ function exportMarkdown() {
 }
 
 function exportHTML() {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = preview.innerHTML;
+    // Get the entire preview area with its classes and content
+    const previewElement = document.getElementById('preview-area');
+    const content = previewElement.outerHTML;
 
-    // Basic wrapper for valid HTML
+    // Create a complete HTML document that matches the preview styling
     const htmlString = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Document</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-<style>body{padding:40px;font-family:system-ui} pre{border-radius:8px;}</style></head>
-<body>${tempDiv.innerHTML}</body></html>`;
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exported Markdown</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <style>${embeddedStyles}</style>
+</head>
+<body class="bg-white text-gray-800 overflow-y-auto custom-scroll">
+    ${content}
+</body>
+</html>`;
 
     downloadFile(htmlString, 'document.html', 'text/html');
 }
