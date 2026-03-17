@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech-MD Studio | Professional Markdown Reader</title>
+    
+    <!-- Libraries via CDN for Styling, Parsing, Highlighting, and Exporting -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-900 text-gray-200 h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Navigation Bar -->
+    <header class="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 shrink-0 sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+            <span class="text-emerald-400 font-bold text-xl">&lt;/&gt;</span>
+            <h1 class="font-semibold text-lg tracking-wide">Tech-MD Studio</h1>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <!-- Import Button -->
+            <input type="file" id="file-input" class="hidden" accept=".md,.markdown,.txt">
+            <button onclick="document.getElementById('file-input').click()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm transition">Import File</button>
+            
+            <div class="h-4 w-[1px] bg-gray-600"></div>
+
+            <!-- Auto Format Button -->
+            <button onclick="autoFormatText()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-sm transition tooltip" title="Convert plain text to Markdown structure">
+                🔄 Convert Text
+            </button>
+
+            <div class="h-4 w-[1px] bg-gray-600"></div>
+
+            <!-- Clear Storage Button -->
+            <button onclick="clearLocalStorage()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm transition tooltip" title="Clear saved draft from browser storage">
+                🗑️ Clear
+            </button>
+
+            <div class="h-4 w-[1px] bg-gray-600"></div>
+
+            <!-- Export Buttons -->
+            <button onclick="exportMarkdown()" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">Save .md</button>
+            <button onclick="exportHTML()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm transition">Save HTML</button>
+            <button onclick="exportPDF()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm transition">Save PDF</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-row relative min-h-0">
+        
+        <!-- Left: Editor Pane -->
+        <section class="w-1/2 flex flex-col border-r border-gray-700 bg-gray-900">
+            <div class="bg-gray-800 px-3 py-1 text-xs text-gray-400 uppercase tracking-wider border-b border-gray-700">Source / Input</div>
+            <textarea 
+                id="editor-area" 
+                class="flex-1 w-full p-4 bg-gray-900 text-gray-300 resize-none focus:outline-none font-mono text-sm leading-relaxed placeholder-gray-600"
+                placeholder="# Start typing or import a file..."
+                spellcheck="false"
+            ></textarea>
+        </section>
+
+        <!-- Right: Preview Pane -->
+        <section class="w-1/2 flex flex-col bg-white text-gray-800 overflow-y-auto custom-scroll">
+            <div class="bg-gray-200 px-3 py-1 text-xs text-gray-600 uppercase tracking-wider border-b border-gray-300 sticky top-0 z-10">Rendered Output</div>
+            <div id="preview-area" class="markdown-body p-8 min-h-full">
+                <div class="text-gray-400 italic text-center mt-20">Preview will appear here...</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Hidden container for PDF export sizing -->
+    <div id="export-container" class="hidden">
+        <div id="export-content" class="p-8 bg-white text-black"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

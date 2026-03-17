@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__executeCode",
+      "Bash(python -c \"import playwright\" 2>&1 || echo \"Playwright not installed\")",
+      "Bash(pip install:*)",
+      "Bash(python -c \"import playwright; print\\('Playwright installed successfully'\\)\" 2>&1)",
+      "Bash(python -c \"import playwright; print\\('Success'\\)\" 2>&1)",
+      "Bash(sleep 60 && python -c \"import playwright; print\\('Playwright ready'\\)\")",
+      "Bash(cd \"c:\\\\Users\\\\Admin\\\\Documents\\\\Full-Stack-Development\\\\Website for Companies\\\\MarkdownConverter\" && python test_page.py)",
+      "Bash(/plugin marketplace:*)",
+      "Bash(/plugin install:*)",
+      "Bash(ls -la *.html *.css *.js)"
+    ]
+  }
+}
