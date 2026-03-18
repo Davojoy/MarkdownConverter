@@ -303,40 +303,164 @@ function exportPDF() {
 
 // --- 5. Text Conversion (The "Converter" Feature) ---
 
+// Helper: Check if line is a header candidate (capitalized short lines)
+function isHeaderCandidate(line) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 100 || trimmed.length < 2) return false;
+    // Check if it's all caps or Title Case and doesn't end with punctuation
+    const endsWithPunct = /[.!?]$/.test(trimmed);
+    const hasMixedCase = /[A-Z]/.test(trimmed) && /[a-z]/.test(trimmed);
+    return !endsWithPunct && (hasMixedCase || trimmed === trimmed.toUpperCase());
+}
+
 function autoFormatText() {
     let text = editor.value;
-
-    // Helper: Detect Code Blocks
-    // This is a simplistic heuristic based on indentation
     const lines = text.split('\n');
     let formattedLines = [];
-    let inBlock = false;
+    let inCodeBlock = false;
+    let codeBlockBuffer = [];
+    let codeIndent = 0;
+    let blankLineCount = 0;
 
-    // 1. Simple Heuristic: Indentations become code blocks (basic attempt)
-    // Note: Real NLP conversion requires complex logic. We'll do structural improvements.
-
-    // Add Headers for short centered lines? (Too risky for code docs)
-
-    // Better Approach: Wrap long isolated code-like lines
-    for(let i=0; i<lines.length; i++) {
-        let line = lines[i].trim();
-
-        // Detect Potential Code (starts with variable, loop, function keywords loosely)
-        if(line.match(/^(let|const|var|def|func|class|\$|#)/i)) {
-            line = "> " + line; // Quote style for pseudo-code explanation
-        }
-
-        // Detect Links
-        if(line.includes('http') || line.includes('www')) {
-           line = `[Link](${line})`;
-        }
-
-        formattedLines.push(lines[i]);
+    // Helper: Check if line is likely a code line (indentation or keywords)
+    function isCodeLine(line, indent) {
+        const trimmed = line.trim();
+        if (!trimmed) return false;
+        const codeKeywords = /^(let|const|var|def|func|function|class|interface|struct|import|export|from|if|else|for|while|return|try|catch|switch|case|break|continue|#include|#define|printf|cout|cin|int|float|double|string|bool|void|public|private|protected|static|final|new|this|super|=>|:|\$)/i;
+        return indent >= 4 || codeKeywords.test(trimmed) || trimmed.includes('{') || trimmed.includes('}') || trimmed.includes('()') || trimmed.includes(';');
     }
 
-    editor.value = formattedLines.join('\n');
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        const trimmed = line.trim();
+        const indent = line.length - line.trimLeft().length;
+
+        // Handle blank lines - separate code blocks, reset counters
+        if (!trimmed) {
+            blankLineCount++;
+
+            // Close code block if we have buffered code and a blank line
+            if (inCodeBlock && codeBlockBuffer.length > 0) {
+                formattedLines.push('```');
+                formattedLines.push(...codeBlockBuffer);
+                formattedLines.push('```');
+                formattedLines.push('');
+                inCodeBlock = false;
+                codeBlockBuffer = [];
+            } else if (blankLineCount === 1) {
+                formattedLines.push('');
+            }
+            continue;
+        }
+
+        blankLineCount = 0;
+
+        // Detect start of code block
+        if (!inCodeBlock && indent >= 4) {
+            inCodeBlock = true;
+            codeIndent = indent;
+            codeBlockBuffer = [line];
+        }
+        // Continue code block
+        else if (inCodeBlock) {
+            // Check if this line maintains code block indentation
+            if (indent >= codeIndent || isCodeLine(line, indent)) {
+                codeBlockBuffer.push(line);
+            } else {
+                // Close code block
+                if (codeBlockBuffer.length > 0) {
+                    formattedLines.push('```');
+                    formattedLines.push(...codeBlockBuffer);
+                    formattedLines.push('```');
+                }
+                inCodeBlock = false;
+                codeBlockBuffer = [];
+
+                // Process the current line normally
+                formattedLines.push(formatLine(line, i, lines));
+            }
+        }
+        // Regular text line
+        else {
+            formattedLines.push(formatLine(line, i, lines));
+        }
+    }
+
+    // Close any remaining code block
+    if (inCodeBlock && codeBlockBuffer.length > 0) {
+        formattedLines.push('```');
+        formattedLines.push(...codeBlockBuffer);
+        formattedLines.push('```');
+    }
+
+    // Remove excessive blank lines (more than 2 consecutive)
+    let finalLines = [];
+    let consecutiveBlanks = 0;
+    for (const line of formattedLines) {
+        if (line === '') {
+            consecutiveBlanks++;
+            if (consecutiveBlanks <= 2) {
+                finalLines.push(line);
+            }
+        } else {
+            consecutiveBlanks = 0;
+            finalLines.push(line);
+        }
+    }
+
+    editor.value = finalLines.join('\n');
     renderMarkdown();
     localStorage.setItem('tm_saved_draft', editor.value);
+}
+
+// Helper to format individual lines
+function formatLine(line, index, allLines) {
+    const trimmed = line.trim();
+
+    // Skip lines that already have markdown formatting (headings, blockquotes, code blocks, lists)
+    if (trimmed.startsWith('#') || trimmed.startsWith('>') || trimmed.startsWith('```') ||
+        trimmed.startsWith('-') || trimmed.startsWith('*')) {
+        return line;
+    }
+
+    // FIRST: Detect and format list items (convert numbered lists to bullet points)
+    // This must come BEFORE header detection to avoid "1. Item" becoming a header
+    if (/^(\d+\.|\(\d+\))\s+/.test(trimmed)) {
+        return trimmed.replace(/^(\d+\.|\(\d+\))\s+/, '- ');
+    }
+
+    // Detect and format URLs
+    if (trimmed.includes('http') || trimmed.includes('www')) {
+        const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+        if (!trimmed.includes('[') && !trimmed.includes(']') && !trimmed.startsWith('*')) {
+            return trimmed.replace(urlPattern, (url) => {
+                const cleanUrl = url.startsWith('www.') ? `https://${url}` : url;
+                return `[${url}](${cleanUrl})`;
+            });
+        }
+    }
+
+    // Detect and format headers (only for lines that aren't lists/URLs/code)
+    if (!trimmed.includes('`') && !trimmed.includes('[') && !trimmed.includes(']')) {
+        const isPotentialHeader = isHeaderCandidate(line);
+        if (isPotentialHeader) {
+            const nextLine = index + 1 < allLines.length ? allLines[index + 1].trim() : '';
+            if (!nextLine || nextLine === '' || nextLine.length < trimmed.length / 2) {
+                return `## ${trimmed}`;
+            }
+        }
+    }
+
+    // Wrap individual code keywords in backticks (sparingly)
+    if (!trimmed.includes('`') && !trimmed.startsWith('```')) {
+        const codeKeywords = /\b(let|const|var|function|return|if|else|for|while|class|import|export|from|def|func|new|this|try|catch|switch|case|break|continue|throw|async|await| => |public|private|protected|static|void|int|float|double|string|bool|printf|cout|cin)\b/gi;
+        if (codeKeywords.test(trimmed) && trimmed.length < 100) {
+            // Only wrap the keyword itself, not the whole line
+            return line.replace(codeKeywords, (match) => `\`${match}\``);
+        }
+    }
+
+    return line;
 }
 
 // Default text
