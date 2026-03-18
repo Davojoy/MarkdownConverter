@@ -15,7 +15,10 @@
       "Bash(node --check script.js)",
       "Bash(python test_autoformat.py)",
       "Bash(python test_markdown_converter.py 2>&1 | head -50)",
-      "Bash(python test_convert_button.py)"
+      "Bash(python test_convert_button.py)",
+      "Bash(python test_rich_text_paste.py 2>&1)",
+      "Bash(python test_html_to_markdown_direct.py 2>&1)",
+      "Bash(python test_markdown_converter.py 2>&1 | grep -E \"\\(✓|✗|PASS|FAIL|Headings|Code|Lists\\)\")"
     ]
   }
 }

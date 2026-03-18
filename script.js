@@ -301,6 +301,236 @@ function exportPDF() {
     html2pdf().set(opt).from(element).save().then(() => {});
 }
 
+// --- 4. Rich Text Paste Conversion ---
+
+/**
+ * Convert HTML string to Markdown
+ * Handles common rich text formatting from Word, Google Docs, web pages
+ */
+function htmlToMarkdown(html) {
+    // Create a temporary DOM element to parse HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    let markdown = '';
+    let inList = false;
+    let listType = '';
+
+    // Process all child nodes recursively
+    function processNode(node, depth = 0) {
+        let result = '';
+
+        if (node.nodeType === Node.TEXT_NODE) {
+            result += node.textContent;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const tagName = node.tagName.toLowerCase();
+            const children = Array.from(node.childNodes).map(child => processNode(child, depth)).join('');
+
+            switch (tagName) {
+                case 'p':
+                case 'div':
+                case 'article':
+                case 'section':
+                    result += children + '\n\n';
+                    break;
+
+                case 'br':
+                    result += '\n';
+                    break;
+
+                case 'h1':
+                    result += `# ${children}\n\n`;
+                    break;
+                case 'h2':
+                    result += `## ${children}\n\n`;
+                    break;
+                case 'h3':
+                    result += `### ${children}\n\n`;
+                    break;
+                case 'h4':
+                    result += `#### ${children}\n\n`;
+                    break;
+                case 'h5':
+                    result += `##### ${children}\n\n`;
+                    break;
+                case 'h6':
+                    result += `###### ${children}\n\n`;
+                    break;
+
+                case 'strong':
+                case 'b':
+                    result += `**${children}**`;
+                    break;
+
+                case 'em':
+                case 'i':
+                    result += `*${children}*`;
+                    break;
+
+                case 'u':
+                    result += `<u>${children}</u>`; // Markdown doesn't have underline, keep HTML or use HTML
+                    break;
+
+                case 's':
+                case 'strike':
+                case 'del':
+                    result += `~~${children}~~`;
+                    break;
+
+                case 'code':
+                    result += `\`${children}\``;
+                    break;
+
+                case 'pre':
+                    // Detect language from class
+                    let lang = '';
+                    if (node.className) {
+                        const match = node.className.match(/language-(\w+)/);
+                        if (match) lang = match[1];
+                    }
+                    // Get raw text content (don't process children as markdown)
+                    let codeText = '';
+                    for (let child of node.childNodes) {
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            codeText += child.textContent;
+                        } else if (child.nodeType === Node.ELEMENT_NODE) {
+                            codeText += child.textContent;
+                        }
+                    }
+                    result += `\`\`\`${lang}\n${codeText.trim()}\n\`\`\`\n\n`;
+                    break;
+
+                case 'blockquote':
+                    const lines = children.split('\n').filter(line => line.trim());
+                    result += lines.map(line => `> ${line}`).join('\n') + '\n\n';
+                    break;
+
+                case 'ul':
+                    result += children;
+                    if (!children.endsWith('\n\n')) result += '\n';
+                    break;
+
+                case 'ol':
+                    result += children;
+                    if (!children.endsWith('\n\n')) result += '\n';
+                    break;
+
+                case 'li':
+                    // Determine list marker based on parent
+                    const parent = node.parentElement;
+                    if (parent && parent.tagName.toLowerCase() === 'ol') {
+                        // For ordered lists, we'll use number + period, but actual numbers are complex
+                        result += `- ${children}\n`;
+                    } else {
+                        result += `- ${children}\n`;
+                    }
+                    break;
+
+                case 'a':
+                    const href = node.getAttribute('href') || '';
+                    const linkText = children || href;
+                    if (href) {
+                        result += `[${linkText}](${href})`;
+                    } else {
+                        result += children;
+                    }
+                    break;
+
+                case 'img':
+                    const src = node.getAttribute('src') || '';
+                    const alt = node.getAttribute('alt') || '';
+                    if (src) {
+                        result += `![${alt}](${src})`;
+                    }
+                    break;
+
+                case 'hr':
+                    result += '---\n\n';
+                    break;
+
+                case 'table':
+                    result += children;
+                    break;
+
+                case 'thead':
+                case 'tbody':
+                case 'tfoot':
+                    result += children;
+                    break;
+
+                case 'tr':
+                    const cells = Array.from(node.children).map(cell => {
+                        const cellContent = processNode(cell).trim();
+                        return `| ${cellContent} `;
+                    }).join('');
+                    result += cells + '|\n';
+                    break;
+
+                case 'th':
+                case 'td':
+                    result += children;
+                    break;
+
+                case 'span':
+                case 'font':
+                case 'label':
+                default:
+                    result += children;
+                    break;
+            }
+        }
+        return result;
+    }
+
+    // Process all top-level nodes
+    const nodes = temp.childNodes;
+    for (let node of nodes) {
+        markdown += processNode(node);
+    }
+
+    // Clean up excessive whitespace while preserving structure
+    markdown = markdown.replace(/[ \t]+$/gm, ''); // Trim trailing spaces
+    markdown = markdown.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
+
+    return markdown.trim();
+}
+
+// Paste event listener for rich text conversion
+function handlePaste(e) {
+    // Get pasted data
+    const clipboardData = e.clipboardData || window.clipboardData;
+    if (!clipboardData) return;
+
+    // Check if HTML is available
+    const htmlData = clipboardData.getData('text/html');
+    const textData = clipboardData.getData('text/plain');
+
+    // If HTML data exists and is substantially different from plain text
+    // Use a smaller threshold to allow conversion of short formatted snippets
+    if (htmlData && (htmlData.length > textData.length + 10 || /<(b|i|strong|em|h[1-6]|ul|ol|li|a|code|pre|blockquote|p)/i.test(htmlData))) {
+        e.preventDefault(); // Prevent default paste
+
+        // Convert HTML to Markdown
+        const markdown = htmlToMarkdown(htmlData);
+
+        // Insert at cursor position or replace selection
+        const textarea = e.target;
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const before = textarea.value.substring(0, startPos);
+        const after = textarea.value.substring(endPos);
+
+        // Set new value
+        textarea.value = before + markdown + after;
+        textarea.selectionStart = textarea.selectionEnd = startPos + markdown.length;
+
+        // Trigger update
+        renderMarkdown();
+        localStorage.setItem('tm_saved_draft', textarea.value);
+    }
+    // Otherwise, let the default paste behavior happen for plain text
+}
+
 // --- 5. Text Conversion (The "Converter" Feature) ---
 
 // Helper: Check if line is a header candidate (capitalized short lines)
@@ -505,6 +735,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up scroll synchronization
     editor.addEventListener('scroll', () => syncScroll(editor, previewSection));
     previewSection.addEventListener('scroll', () => syncScroll(previewSection, editor));
+
+    // Set up paste event listener for rich text to markdown conversion
+    editor.addEventListener('paste', handlePaste);
 
     // Set up panel resizer
     resizer.addEventListener('mousedown', (e) => {
