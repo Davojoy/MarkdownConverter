@@ -384,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set up panel resizer
     resizer.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // Prevent text selection and default drag behavior
         isResizing = true;
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
@@ -395,15 +396,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.querySelector('main');
         const containerRect = container.getBoundingClientRect();
         const containerWidth = containerRect.width;
+        const resizerRect = resizer.getBoundingClientRect();
+        const resizerWidth = resizerRect.width;
 
-        // Calculate new widths as percentages
-        const editorPercentage = ((e.clientX - containerRect.left) / containerWidth) * 100;
+        // Calculate desired editor width based on mouse position relative to container
+        let newEditorWidth = e.clientX - containerRect.left;
 
-        // Clamp between 20% and 80%
-        if (editorPercentage >= 20 && editorPercentage <= 80) {
-            editorPane.style.flex = `0 0 ${editorPercentage}%`;
-            previewPane.style.flex = `0 0 ${100 - editorPercentage}%`;
-        }
+        // Clamp to minimum sizes (200px each) and ensure preview has room
+        const minEditorWidth = 200;
+        const minPreviewWidth = 200;
+        const minAllowedEditor = minEditorWidth;
+        const maxAllowedEditor = containerWidth - resizerWidth - minPreviewWidth;
+
+        newEditorWidth = Math.max(minAllowedEditor, Math.min(newEditorWidth, maxAllowedEditor));
+
+        // Apply the new width
+        editorPane.style.flex = '0 0 auto';
+        editorPane.style.width = `${newEditorWidth}px`;
+        previewPane.style.flex = '1 1 0%';
     });
 
     document.addEventListener('mouseup', () => {
